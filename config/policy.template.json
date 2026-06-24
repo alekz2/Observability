@@ -1,0 +1,255 @@
+{
+  "_comment": [
+    "Generic policy template. Copy to policy.json and fill in host-specific values,",
+    "OR keep ${VAR} placeholders here and set those vars in your .env file.",
+    "The service expands ${ENV_VAR} references at load time using os.environ.",
+    "",
+    "Available SSH defaults (set in .env, apply to hosts that omit the field):",
+    "  REMOTE_QUERY_SSH_DEFAULT_USER     - default SSH username",
+    "  REMOTE_QUERY_SSH_DEFAULT_KEY_PATH - default private key path",
+    "  REMOTE_QUERY_SSH_DEFAULT_KNOWN_HOSTS - default known_hosts file path"
+  ],
+  "query_services": {
+    "host_identity": {
+      "description": "Basic host identity checks",
+      "queries": {
+        "hostname_short": {
+          "command": "hostname",
+          "args": [],
+          "description": "Show the short hostname"
+        },
+        "hostname_fqdn": {
+          "command": "hostname",
+          "args": ["-f"],
+          "description": "Show the fully qualified hostname"
+        }
+      }
+    },
+    "process_observability": {
+      "description": "Process inspection queries",
+      "queries": {
+        "ps_named": {
+          "command": "pgrep",
+          "args": ["-a", "-f", "{process_name}"],
+          "description": "List processes whose full command line matches a pattern",
+          "arg_policies": [
+            { "name": "process_name", "pattern": "[A-Za-z0-9_.-]+", "required": true }
+          ]
+        }
+      }
+    },
+    "network_diagnostics": {
+      "description": "Network and firewall diagnostics",
+      "queries": {
+        "ss_listen": {
+          "command": "ss",
+          "args": ["-ltnp"],
+          "description": "Show listening TCP sockets"
+        },
+        "ip_addr": {
+          "command": "ip",
+          "args": ["addr"],
+          "description": "Show network interface addresses"
+        },
+        "ip_route": {
+          "command": "ip",
+          "args": ["route"],
+          "description": "Show routing table"
+        },
+        "ping_host": {
+          "command": "ping",
+          "args": ["-c", "3", "{target}"],
+          "description": "Ping a target host (3 packets)",
+          "arg_policies": [
+            { "name": "target", "pattern": "[A-Za-z0-9._:-]+", "required": true }
+          ]
+        },
+        "tcp_connect_check": {
+          "command": "bash",
+          "args": ["-c", "timeout 3 bash -c '</dev/tcp/{target_host}/{target_port}' && echo open || echo closed"],
+          "description": "Check TCP reachability to host:port",
+          "arg_policies": [
+            { "name": "target_host", "pattern": "[A-Za-z0-9._-]+", "required": true },
+            { "name": "target_port", "pattern": "[0-9]{1,5}", "required": true }
+          ]
+        },
+        "getent_hosts": {
+          "command": "getent",
+          "args": ["hosts", "{name}"],
+          "description": "Resolve a host name through NSS",
+          "arg_policies": [
+            { "name": "name", "pattern": "[A-Za-z0-9_.:-]+", "required": true }
+          ]
+        }
+      }
+    },
+    "filesystem_info": {
+      "description": "Filesystem space and mount information",
+      "queries": {
+        "df_human": {
+          "command": "df",
+          "args": ["-h"],
+          "description": "Disk space usage (human-readable)"
+        },
+        "df_path": {
+          "command": "df",
+          "args": ["-h", "{path}"],
+          "description": "Disk space for a specific path",
+          "arg_policies": [
+            { "name": "path", "pattern": "/[A-Za-z0-9/_.-]*", "required": true }
+          ]
+        }
+      }
+    },
+    "neovim_introspection": {
+      "description": "Read-only Neovim and Mason installation introspection",
+      "queries": {
+        "nvim_version": {
+          "command": "nvim",
+          "args": ["--version"],
+          "description": "Show the installed Neovim version and build information"
+        },
+        "nvim_stdpaths": {
+          "command": "nvim",
+          "args": [
+            "--headless",
+            "--clean",
+            "+lua print(vim.json.encode({config=vim.fn.stdpath('config'),data=vim.fn.stdpath('data'),state=vim.fn.stdpath('state'),cache=vim.fn.stdpath('cache')}))",
+            "+qa"
+          ],
+          "description": "Show Neovim standard config, data, state, and cache paths"
+        },
+        "nvim_pack_get": {
+          "command": "nvim",
+          "args": [
+            "--headless",
+            "--clean",
+            "+lua local ok,items=pcall(function() return vim.pack.get(nil,{offline=true}) end); if ok then print(vim.json.encode(items)) else print('vim.pack unavailable') end",
+            "+qa"
+          ],
+          "description": "List plugins managed by Neovim's native vim.pack package manager"
+        },
+        "nvim_dap_python_probe": {
+          "command": "sh",
+          "args": [
+            "-lc",
+            "set -u; data=\"$HOME/.local/share/nvim\"; echo \"nvim=$(command -v nvim || true)\"; echo \"python=$(command -v python || true)\"; echo \"python3=$(command -v python3 || true)\"; echo \"debugpy_pkg=$data/mason/packages/debugpy\"; ls -la \"$data/mason/packages/debugpy\" 2>&1 || true; ls -la \"$data/mason/packages/debugpy/venv/bin\" 2>&1 || true; echo \"debugpy-adapter-bin=$data/mason/bin/debugpy-adapter\"; \"$data/mason/bin/debugpy-adapter\" --help 2>&1 | head -20 || true; echo \"venv-python-debugpy-adapter\"; \"$data/mason/packages/debugpy/venv/bin/python\" -m debugpy.adapter --help 2>&1 | head -20 || true"
+          ],
+          "description": "Probe Mason debugpy executable layout and adapter startup behavior"
+        },
+        "nvim_dap_runtime_probe": {
+          "command": "nvim",
+          "args": [
+            "--headless",
+            "+lua local ok, dap = pcall(require, 'dap'); print('dap_require=' .. tostring(ok)); if ok then print('adapter_python_type=' .. type(dap.adapters.python)); print('config_python_type=' .. type(dap.configurations.python)); print('config_python_count=' .. tostring(dap.configurations.python and #dap.configurations.python or 0)); if dap.configurations.python then for i,c in ipairs(dap.configurations.python) do print(i .. ':' .. tostring(c.name) .. ':' .. tostring(c.type) .. ':' .. tostring(c.request)) end end end",
+            "+qa"
+          ],
+          "description": "Probe loaded nvim-dap Python adapter and configuration state"
+        },
+        "nvim_dap_logs": {
+          "command": "sh",
+          "args": [
+            "-lc",
+            "for f in \"$HOME/.cache/nvim/dap.log\" \"$HOME/.local/state/nvim/dap.log\" \"$HOME/.local/state/nvim/log\" \"$HOME/.local/state/nvim/nvim.log\"; do echo \"== $f ==\"; if [ -f \"$f\" ]; then tail -120 \"$f\"; else echo missing; fi; done"
+          ],
+          "description": "Read recent Neovim and nvim-dap log output from standard state/cache locations"
+        },
+        "nvim_config_files": {
+          "command": "find",
+          "args": ["/home/${SSH_USER}/.config/nvim", "-maxdepth", "4", "-type", "f", "-not", "-path", "*/.git/*", "-printf", "%p\n"],
+          "description": "List Neovim configuration files under ~/.config/nvim"
+        },
+        "nvim_lua_dirs": {
+          "command": "find",
+          "args": ["/home/${SSH_USER}/.config/nvim/lua", "-type", "d", "-not", "-path", "*/.git/*", "-printf", "%p\n"],
+          "description": "List Neovim Lua configuration directories under ~/.config/nvim/lua"
+        },
+        "nvim_lua_files": {
+          "command": "find",
+          "args": ["/home/${SSH_USER}/.config/nvim/lua", "-type", "f", "-not", "-path", "*/.git/*", "-printf", "%p\n"],
+          "description": "List Neovim Lua configuration files under ~/.config/nvim/lua"
+        },
+        "nvim_read_lua_file": {
+          "command": "cat",
+          "args": ["/home/${SSH_USER}/.config/nvim/lua/{lua_path}"],
+          "description": "Read a Lua configuration file under ~/.config/nvim/lua by relative path",
+          "arg_policies": [
+            { "name": "lua_path", "pattern": "([A-Za-z0-9_-]+/)*[A-Za-z0-9_-]+(\\.[A-Za-z0-9_-]+)*", "required": true }
+          ]
+        },
+        "nvim_read_init_lua": {
+          "command": "cat",
+          "args": ["/home/${SSH_USER}/.config/nvim/init.lua"],
+          "description": "Read ~/.config/nvim/init.lua"
+        },
+        "nvim_read_init_vim": {
+          "command": "cat",
+          "args": ["/home/${SSH_USER}/.config/nvim/init.vim"],
+          "description": "Read ~/.config/nvim/init.vim"
+        },
+        "nvim_read_pack_lock": {
+          "command": "cat",
+          "args": ["/home/${SSH_USER}/.config/nvim/nvim-pack-lock.json"],
+          "description": "Read the native vim.pack lockfile"
+        },
+        "mason_package_dirs": {
+          "command": "find",
+          "args": ["/home/${SSH_USER}/.local/share/nvim/mason/packages", "-mindepth", "1", "-maxdepth", "1", "-type", "d", "-printf", "%f\n"],
+          "description": "List Mason package directories"
+        },
+        "mason_bin_links": {
+          "command": "find",
+          "args": ["/home/${SSH_USER}/.local/share/nvim/mason/bin", "-mindepth", "1", "-maxdepth", "1", "-printf", "%f -> %l\n"],
+          "description": "List Mason bin entries and symlink targets"
+        },
+        "mason_registry_dirs": {
+          "command": "find",
+          "args": ["/home/${SSH_USER}/.local/share/nvim/mason/registries", "-mindepth", "1", "-maxdepth", "3", "-type", "d", "-printf", "%p\n"],
+          "description": "List Mason registry directories"
+        }
+      }
+    }
+  },
+  "hosts": [
+    {
+      "_comment": "Example POSIX host — replace address, paths, and query_services as needed.",
+      "name": "ExampleLinuxHost",
+      "address": "${EXAMPLE_HOST_ADDRESS}",
+      "port": 22,
+      "username": "${SSH_USER}",
+      "private_key_path": "${SSH_KEY_PATH}",
+      "known_hosts_path": null,
+      "allowed_paths": [
+        "/var/log/*.log",
+        "/var/log/**/*.log",
+        "/home/${SSH_USER}/app/logs/*.log"
+      ],
+      "query_services": [
+        "host_identity",
+        "process_observability",
+        "network_diagnostics",
+        "filesystem_info"
+      ],
+      "allowed_queries": {}
+    },
+    {
+      "_comment": "Example Windows host via OpenSSH — log read not supported, queries only.",
+      "name": "ExampleWindowsHost",
+      "address": "${WINDOWS_HOST_ADDRESS}",
+      "port": 22,
+      "os_family": "windows",
+      "username": "${SSH_USER}",
+      "private_key_path": "${SSH_KEY_PATH}",
+      "known_hosts_path": null,
+      "allowed_paths": [],
+      "query_services": ["host_identity"],
+      "allowed_queries": {
+        "wsl_list": {
+          "command": "wsl",
+          "args": ["--list", "--verbose"],
+          "description": "List WSL2 distributions and their state"
+        }
+      }
+    }
+  ]
+}

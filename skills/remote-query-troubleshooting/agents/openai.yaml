@@ -1,0 +1,7 @@
+interface:
+  display_name: "Remote Query Troubleshooting"
+  short_description: "Troubleshoot connectivity, processes, sockets, and logs through the API"
+  default_prompt: "Use $remote-query-troubleshooting to troubleshoot network reachability, service connectivity, process state, listening ports, and log output through the local Remote Query Service API."
+
+policy:
+  allow_implicit_invocation: true

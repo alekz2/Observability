@@ -1,0 +1,7 @@
+interface:
+  display_name: "General Lab Guidance"
+  short_description: "Apply the shared lab topology and step-by-step troubleshooting rules"
+  default_prompt: "Use $general to apply the shared lab topology, step-by-step interactive troubleshooting mode, and the Query Service API failure rule for this environment."
+
+policy:
+  allow_implicit_invocation: true

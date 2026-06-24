@@ -1,0 +1,228 @@
+Metadata-Version: 2.4
+Name: remote-query-service
+Version: 0.1.0
+Summary: Read-only remote query API service for approved logs and user-configurable host queries.
+Requires-Python: >=3.12
+Description-Content-Type: text/markdown
+Requires-Dist: asyncssh<3.0.0,>=2.15.0
+Requires-Dist: fastapi<1.0.0,>=0.115.0
+Requires-Dist: orjson<4.0.0,>=3.10.0
+Requires-Dist: pydantic-settings<3.0.0,>=2.6.0
+Requires-Dist: redis<6.0.0,>=5.2.0
+Requires-Dist: structlog<25.0.0,>=24.4.0
+Requires-Dist: uvicorn<1.0.0,>=0.32.0
+Provides-Extra: dev
+Requires-Dist: httpx<1.0.0,>=0.28.0; extra == "dev"
+Requires-Dist: pytest<9.0.0,>=8.3.0; extra == "dev"
+Requires-Dist: pytest-asyncio<1.0.0,>=0.24.0; extra == "dev"
+
+# Remote Query Service
+
+Policy-restricted Python 3.12+ API service for tailing approved log files and running user-configurable remote host queries over SSH.
+
+Project root:
+
+```text
+D:\Alex\Work\Tools\Observability
+```
+
+## Features
+
+- FastAPI HTTP API
+- Host and path allowlists
+- Host-specific approved query catalog
+- Cursor-based tail sessions
+- SSH-backed remote reads with log rotation detection
+- SSH-backed execution of approved remote commands
+- In-memory session store with a Redis-ready interface
+- Optional bearer-token API authentication
+- Append-only JSONL audit logging
+- Environment override for the policy file via `REMOTE_QUERY_POLICY_PATH`
+
+## Quick start
+
+1. Create and activate a Python 3.12+ virtual environment.
+2. Install dependencies:
+
+```powershell
+pip install -e .[dev]
+```
+
+3. Copy the example environment file:
+
+```powershell
+Copy-Item .env.example .env
+```
+
+4. Edit `config/policy.json` with your hosts, SSH key path, allowed log paths, and any approved remote queries you want users to run.
+5. Optionally set `REMOTE_QUERY_API_KEYS` in `.env` using `token:subject` pairs separated by commas.
+6. Set the policy path explicitly. This avoids ambiguity if `uvicorn` is launched from a different working directory:
+
+```powershell
+$env:REMOTE_QUERY_POLICY_PATH = "D:\Alex\Work\Tools\Observability\config\policy.json"
+```
+
+7. Run the service:
+
+```powershell
+uvicorn remote_query_service.main:app --reload
+```
+
+Run the commands in this README from the project root shown above.
+
+The application code does not hardcode port `8000`. That endpoint comes from `uvicorn`'s default bind address when you omit `--host` and `--port`, which is `127.0.0.1:8000`. To run on a different interface or port, start it explicitly:
+
+```powershell
+uvicorn remote_query_service.main:app --reload --host 0.0.0.0 --port 9000
+```
+
+If you want to start from any directory and force the source tree plus policy file explicitly:
+
+```powershell
+$env:PYTHONPATH = "D:\Alex\Work\Tools\Observability\src"
+$env:REMOTE_QUERY_POLICY_PATH = "D:\Alex\Work\Tools\Observability\config\policy.json"
+python -m uvicorn remote_query_service.main:app --app-dir D:\Alex\Work\Tools\Observability\src
+```
+
+Equivalent `cmd.exe` example:
+
+```cmd
+cd /d D:\Alex\Work\Tools\Observability
+set PYTHONPATH=D:\Alex\Work\Tools\Observability\src
+set REMOTE_QUERY_POLICY_PATH=D:\Alex\Work\Tools\Observability\config\policy.json
+python -m uvicorn remote_query_service.main:app --app-dir D:\Alex\Work\Tools\Observability\src
+```
+
+## API
+
+Health endpoint:
+- `GET /healthz`
+
+Versioned API endpoints:
+- `GET /v1/hosts`
+- `GET /v1/hosts/{host}/queries`
+- `POST /v1/logs/search`
+- `POST /v1/queries/run`
+- `POST /v1/sessions/open`
+- `POST /v1/sessions/read`
+- `POST /v1/sessions/close`
+
+Open a session at the end of a file and read only bounded chunks from there, or run a named approved query. The service never exposes arbitrary shell execution; it only executes policy-defined operations via the fixed remote helper over SSH. Log access is read-only. Query safety depends on the commands and argument patterns you approve in policy.
+
+Approved remote host queries are defined in `config/policy.json` under each host's `allowed_queries`. This is how you safely add user-selectable operations such as `ss`, `ps`, and `nmcli` without permitting arbitrary shell access.
+
+When `REMOTE_QUERY_API_KEYS` is set, callers must send `Authorization: Bearer <token>`.
+
+## Current bundled policy example
+
+The current repository policy includes two Geode troubleshooting hosts:
+
+- `Apache_Geode`
+  - host: `Antman`
+  - approved log paths:
+    - `/home/alex/geode_cluster/server1/*.log`
+    - `/home/alex/geode_cluster/locator1/*.log`
+- `Apache_Geode_Hulk`
+  - host: `Hulk`
+  - approved log paths:
+    - `/home/alex/geode_cluster/server2/*.log`
+    - `/home/alex/geode_cluster/locator2/*.log`
+
+The approved query set currently includes:
+
+- `ss_listen`
+- `ps_named`
+- `nmcli_device_status`
+- `hostname_short`
+- `hostname_fqdn`
+- `getent_hosts`
+- `getent_ahostsv4`
+- `firewalld_state`
+- `firewalld_ports`
+- `firewalld_services`
+- `iptables_input`
+- `nft_ruleset`
+
+These hosts and paths are intended for read-only Geode troubleshooting through the API. Keep them aligned with the actual Geode member working directories.
+
+Example search request:
+
+```powershell
+curl -X POST http://127.0.0.1:8000/v1/logs/search `
+  -H "Authorization: Bearer <token>" `
+  -H "Content-Type: application/json" `
+  -d "{\"host\":\"app-01\",\"path\":\"/var/log/app/current.log\",\"pattern\":\"ERROR\",\"max_matches\":5,\"before\":1,\"after\":1}"
+```
+
+Example query execution:
+
+```powershell
+curl -X POST http://127.0.0.1:8000/v1/queries/run `
+  -H "Authorization: Bearer <token>" `
+  -H "Content-Type: application/json" `
+  -d "{\"host\":\"app-01\",\"query_name\":\"ps_named\",\"arguments\":{\"process_name\":\"python\"},\"max_lines\":50}"
+```
+
+Example query policy:
+
+```json
+{
+  "ps_named": {
+    "command": "pgrep",
+    "args": ["-a", "-f", "{process_name}"],
+    "description": "List processes whose full command line matches a pattern",
+    "arg_policies": [
+      {
+        "name": "process_name",
+        "pattern": "[A-Za-z0-9_.-]+",
+        "required": true
+      }
+    ]
+  }
+}
+```
+
+Example Geode host listing:
+
+```powershell
+curl http://127.0.0.1:8000/v1/hosts
+```
+
+Example Geode query listing:
+
+```powershell
+curl http://127.0.0.1:8000/v1/hosts/Apache_Geode/queries
+curl http://127.0.0.1:8000/v1/hosts/Apache_Geode_Hulk/queries
+```
+
+Example Geode log open request:
+
+```powershell
+curl -X POST http://127.0.0.1:8000/v1/sessions/open `
+  -H "Content-Type: application/json" `
+  -d "{\"host\":\"Apache_Geode\",\"path\":\"/home/alex/geode_cluster/locator1/locator1.log\",\"start\":\"end\",\"lines\":40}"
+```
+
+Example Geode query execution:
+
+```powershell
+curl -X POST http://127.0.0.1:8000/v1/queries/run `
+  -H "Content-Type: application/json" `
+  -d "{\"host\":\"Apache_Geode_Hulk\",\"query_name\":\"ss_listen\",\"arguments\":{},\"max_lines\":50}"
+```
+
+## Operational notes
+
+- The policy file path is resolved at runtime. If you do not set `REMOTE_QUERY_POLICY_PATH`, the service may load `config/policy.json` relative to the process working directory instead of the repository root.
+- For Geode troubleshooting, the API only exposes approved log paths and approved remote commands. It does not allow arbitrary shell execution.
+- Direct SSH troubleshooting is outside the API contract and should be treated as a separate operator workflow.
+
+## Security notes
+
+- Use a dedicated constrained SSH account for this service.
+- Keep `config/policy.json` under administrative control.
+- Narrow `allowed_paths` as much as possible.
+- Treat `allowed_queries` as a command allowlist. Only approve commands which are safe for that service account to run.
+- Enable `REMOTE_QUERY_API_KEYS` or place the service behind another auth layer before exposing it outside a trusted network.
+- Review and protect the audit log at `REMOTE_QUERY_AUDIT_LOG_PATH`.
+
