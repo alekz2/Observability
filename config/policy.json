@@ -460,7 +460,9 @@
         "/var/log/nginx/access.log",
         "/home/${SSH_USER}/geode_cluster/*.properties",
         "/home/${SSH_USER}/geode_cluster/server1/*.log",
-        "/home/${SSH_USER}/geode_cluster/locator1/*.log"
+        "/home/${SSH_USER}/geode_cluster/locator1/*.log",
+        "/opt/splunkforwarder/etc/apps/search/local/*.conf",
+        "/opt/splunkforwarder/etc/system/local/*.conf"
       ],
       "query_services": [
         "host_identity",
@@ -469,7 +471,28 @@
         "filesystem_read",
         "geode_diagnostics"
       ],
-      "allowed_queries": {}
+      "allowed_queries": {
+        "list_splunkfwd_local_configs": {
+          "command": "find",
+          "args": [
+            "/opt/splunkforwarder/etc/apps/search/local",
+            "-maxdepth", "1",
+            "-name", "*.conf",
+            "-printf", "%f\n"
+          ],
+          "description": "List config files present in the forwarder's search app local directory"
+        },
+        "read_splunkfwd_inputs": {
+          "command": "cat",
+          "args": ["/opt/splunkforwarder/etc/apps/search/local/inputs.conf"],
+          "description": "Read the forwarder inputs.conf (monitor stanzas)"
+        },
+        "read_splunkfwd_outputs": {
+          "command": "cat",
+          "args": ["/opt/splunkforwarder/etc/system/local/outputs.conf"],
+          "description": "Read the forwarder outputs.conf (forward-server target)"
+        }
+      }
     },
     {
       "name": "Apache_Geode_Hulk",
@@ -687,16 +710,17 @@
       }
     },
     {
-      "name": "WSL2_Vision",
+      "name": "Vision",
       "address": "Vision",
-      "port": 50022,
+      "port": 22,
       "username": "${SSH_USER}",
       "private_key_path": "${SSH_KEY_PATH}",
       "known_hosts_path": null,
       "allowed_paths": [
         "/home/${SSH_USER}/geode/scripts/*.sh",
         "/home/${SSH_USER}/geode_cluster_b/serverB1/*.log",
-        "/home/${SSH_USER}/geode_cluster_b/locatorB/*.log"
+        "/home/${SSH_USER}/geode_cluster_b/locatorB/*.log",
+        "/opt/splunkforwarder/etc/system/local/*.conf"
       ],
       "query_services": [
         "filesystem_read",
@@ -705,18 +729,40 @@
         "network_diagnostics",
         "geode_diagnostics"
       ],
-      "allowed_queries": {}
+      "allowed_queries": {
+        "list_splunkfwd_local_configs": {
+          "command": "find",
+          "args": [
+            "/opt/splunkforwarder/etc/system/local",
+            "-maxdepth", "1",
+            "-name", "*.conf",
+            "-printf", "%f\n"
+          ],
+          "description": "List config files present in the forwarder system/local directory"
+        },
+        "read_splunkfwd_inputs": {
+          "command": "cat",
+          "args": ["/opt/splunkforwarder/etc/system/local/inputs.conf"],
+          "description": "Read the forwarder inputs.conf (monitor stanzas)"
+        },
+        "read_splunkfwd_outputs": {
+          "command": "cat",
+          "args": ["/opt/splunkforwarder/etc/system/local/outputs.conf"],
+          "description": "Read the forwarder outputs.conf (forward-server target)"
+        }
+      }
     },
     {
       "name": "Warmachine",
       "address": "Warmachine",
-      "port": 60022,
+      "port": 22,
       "username": "${SSH_USER}",
       "private_key_path": "${SSH_KEY_PATH}",
       "known_hosts_path": null,
       "allowed_paths": [
         "/home/${SSH_USER}/geode/scripts/*.sh",
-        "/home/${SSH_USER}/geode_cluster_b/serverB2/*.log"
+        "/home/${SSH_USER}/geode_cluster_b/serverB2/*.log",
+        "/opt/splunkforwarder/etc/system/local/*.conf"
       ],
       "query_services": [
         "filesystem_read",
@@ -725,7 +771,28 @@
         "network_diagnostics",
         "geode_diagnostics"
       ],
-      "allowed_queries": {}
+      "allowed_queries": {
+        "list_splunkfwd_local_configs": {
+          "command": "find",
+          "args": [
+            "/opt/splunkforwarder/etc/system/local",
+            "-maxdepth", "1",
+            "-name", "*.conf",
+            "-printf", "%f\n"
+          ],
+          "description": "List config files present in the forwarder system/local directory"
+        },
+        "read_splunkfwd_inputs": {
+          "command": "cat",
+          "args": ["/opt/splunkforwarder/etc/system/local/inputs.conf"],
+          "description": "Read the forwarder inputs.conf (monitor stanzas)"
+        },
+        "read_splunkfwd_outputs": {
+          "command": "cat",
+          "args": ["/opt/splunkforwarder/etc/system/local/outputs.conf"],
+          "description": "Read the forwarder outputs.conf (forward-server target)"
+        }
+      }
     },
     {
       "name": "Hawkeye",
@@ -736,6 +803,7 @@
       "known_hosts_path": null,
       "allowed_paths": [
         "/opt/splunk/etc/system/local/*.conf",
+        "/opt/splunk/etc/**/*.conf",
         "/opt/splunk/var/log/splunk/*.log"
       ],
       "query_services": [
@@ -744,6 +812,29 @@
         "network_diagnostics"
       ],
       "allowed_queries": {
+        "list_splunk_all_confs": {
+          "command": "find",
+          "args": [
+            "/opt/splunk/etc",
+            "-name", "*.conf",
+            "-printf", "%p\n"
+          ],
+          "description": "List all *.conf files anywhere under /opt/splunk/etc (system and app-specific)"
+        },
+        "read_splunk_conf": {
+          "command": "cat",
+          "args": [
+            "/opt/splunk/etc/{conf_path}"
+          ],
+          "description": "Read any *.conf file under /opt/splunk/etc by relative path",
+          "arg_policies": [
+            {
+              "name": "conf_path",
+              "pattern": "([A-Za-z0-9_-]+/)*[A-Za-z0-9_-]+\\.conf",
+              "required": true
+            }
+          ]
+        },
         "splunk_version": {
           "command": "/opt/splunk/bin/splunk",
           "args": ["version"],
@@ -815,7 +906,9 @@
       "known_hosts_path": null,
       "allowed_paths": [
         "/home/${SSH_USER}/Work/quickfixj/**",
-        "/home/${SSH_USER}/Work/fix-lab/**"
+        "/home/${SSH_USER}/Work/fix-lab/**",
+        "/home/${SSH_USER}/Work/oms-lab/**",
+        "/home/${SSH_USER}/Work/oms-lab-data/**"
       ],
       "query_services": [
         "host_identity",
@@ -855,6 +948,137 @@
           "command": "java",
           "args": ["-version"],
           "description": "Show the active Java version on PATH"
+        },
+        "list_quickfixj_examples": {
+          "command": "find",
+          "args": [
+            "/home/${SSH_USER}/Work/quickfixj/quickfixj-examples",
+            "-mindepth", "1",
+            "-maxdepth", "1",
+            "-type", "d",
+            "-printf", "%f\n"
+          ],
+          "description": "List example application module directories under quickfixj-examples"
+        },
+        "find_example_application_classes": {
+          "command": "find",
+          "args": [
+            "/home/${SSH_USER}/Work/quickfixj/quickfixj-examples",
+            "-name", "Application.java",
+            "-printf", "%p\n"
+          ],
+          "description": "Locate each example app's Application.java (main FIX message handling entry point)"
+        },
+        "read_ordermatch_application": {
+          "command": "cat",
+          "args": [
+            "/home/${SSH_USER}/Work/quickfixj/quickfixj-examples/ordermatch/src/main/java/quickfix/examples/ordermatch/Application.java"
+          ],
+          "description": "Read the ordermatch example's Application.java (message handling logic)"
+        },
+        "find_ordermatch_config": {
+          "command": "find",
+          "args": [
+            "/home/${SSH_USER}/Work/quickfixj/quickfixj-examples/ordermatch",
+            "-name", "*.cfg",
+            "-printf", "%p\n"
+          ],
+          "description": "Locate the ordermatch example's session config file"
+        },
+        "read_ordermatch_config": {
+          "command": "cat",
+          "args": [
+            "/home/${SSH_USER}/Work/quickfixj/quickfixj-examples/ordermatch/src/main/resources/quickfix/examples/ordermatch/ordermatch.cfg"
+          ],
+          "description": "Read the ordermatch example's acceptor session configuration"
+        },
+        "read_quickfixj_file": {
+          "command": "cat",
+          "args": [
+            "/home/${SSH_USER}/Work/quickfixj/{rel_path}"
+          ],
+          "description": "Read any file under the quickfixj installation by relative path",
+          "arg_policies": [
+            {
+              "name": "rel_path",
+              "pattern": "([A-Za-z0-9_-]+/)*[A-Za-z0-9_-]+(\\.[A-Za-z0-9_-]+)*",
+              "required": true
+            }
+          ]
+        },
+        "list_banzai_files": {
+          "command": "find",
+          "args": [
+            "/home/${SSH_USER}/Work/quickfixj/quickfixj-examples/banzai/src/main/java/quickfix/examples/banzai",
+            "-name", "*.java",
+            "-printf", "%f\n"
+          ],
+          "description": "List banzai example source files to identify its role and main class"
+        },
+        "list_omslab_tree": {
+          "command": "find",
+          "args": [
+            "/home/${SSH_USER}/Work/oms-lab",
+            "-type", "f",
+            "-not", "-path", "*/__pycache__/*",
+            "-not", "-path", "*/.git/*",
+            "-printf", "%p\n"
+          ],
+          "description": "List files under the deployed oms-lab tree (Router/Gateway/FixEngine/webui)"
+        },
+        "read_omslab_file": {
+          "command": "cat",
+          "args": [
+            "/home/${SSH_USER}/Work/oms-lab/{rel_path}"
+          ],
+          "description": "Read any file under the deployed oms-lab tree by relative path",
+          "arg_policies": [
+            {
+              "name": "rel_path",
+              "pattern": "([A-Za-z0-9_.-]+/)*[A-Za-z0-9_.-]+(\\.[A-Za-z0-9_-]+)*",
+              "required": true
+            }
+          ]
+        },
+        "tail_omsrouter_activity_log": {
+          "command": "tail",
+          "args": ["-n", "200", "/home/${SSH_USER}/Work/oms-lab/omsrouter/logs/activity.log"],
+          "description": "Show the last 200 lines of OrderRouter's JSON-lines activity log"
+        },
+        "tail_omsrouter_console_log": {
+          "command": "tail",
+          "args": ["-n", "200", "/home/${SSH_USER}/Work/oms-lab/omsrouter/logs/console.log"],
+          "description": "Show the last 200 lines of OrderRouter's console log"
+        },
+        "tail_omsgateway_activity_log": {
+          "command": "tail",
+          "args": ["-n", "200", "/home/${SSH_USER}/Work/oms-lab/omsgateway/logs/activity.log"],
+          "description": "Show the last 200 lines of OrderGateway's JSON-lines activity log"
+        },
+        "tail_omsgateway_console_log": {
+          "command": "tail",
+          "args": ["-n", "200", "/home/${SSH_USER}/Work/oms-lab/omsgateway/logs/console.log"],
+          "description": "Show the last 200 lines of OrderGateway's console log"
+        },
+        "tail_fixengine_activity_log": {
+          "command": "tail",
+          "args": ["-n", "200", "/home/${SSH_USER}/Work/oms-lab/fixengine/logs/activity.log"],
+          "description": "Show the last 200 lines of FixEngine's JSON-lines activity log"
+        },
+        "tail_fixengine_console_log": {
+          "command": "tail",
+          "args": ["-n", "200", "/home/${SSH_USER}/Work/oms-lab/fixengine/logs/console.log"],
+          "description": "Show the last 200 lines of FixEngine's console log"
+        },
+        "list_omslab_fix_session_files": {
+          "command": "find",
+          "args": [
+            "/home/${SSH_USER}/Work/oms-lab-data/fixengine/store",
+            "-maxdepth", "2",
+            "-type", "f",
+            "-printf", "%p\n"
+          ],
+          "description": "List QuickFIX/J session store files written by fixengine (OMS session)"
         }
       }
     },
@@ -882,16 +1106,6 @@
           ],
           "description": "Show the Windows short hostname"
         },
-        "portproxy_show_all": {
-          "command": [
-            "netsh",
-            "interface",
-            "portproxy",
-            "show",
-            "all"
-          ],
-          "description": "Show the configured Windows portproxy rules"
-        },
         "openssh_service": {
           "command": [
             "powershell.exe",
@@ -912,9 +1126,9 @@
             "-Command"
           ],
           "args": [
-            "Get-NetTCPConnection -State Listen | Where-Object { $_.LocalPort -in 22,50022,60022 } | Sort-Object LocalPort | Select-Object LocalAddress,LocalPort,OwningProcess,State | ConvertTo-Json -Compress"
+            "Get-NetTCPConnection -State Listen | Where-Object { $_.LocalPort -eq 22 } | Select-Object LocalAddress,LocalPort,OwningProcess,State | ConvertTo-Json -Compress"
           ],
-          "description": "Show Windows listeners for SSH and the WSL forwarded ports"
+          "description": "Show the Windows SSH listener"
         },
         "relay_processes": {
           "command": [
@@ -924,9 +1138,9 @@
             "-Command"
           ],
           "args": [
-            "Get-Process -Name sshd,wslrelay -ErrorAction SilentlyContinue | Select-Object Name,Id,Path | ConvertTo-Json -Compress"
+            "Get-Process -Name sshd -ErrorAction SilentlyContinue | Select-Object Name,Id,Path | ConvertTo-Json -Compress"
           ],
-          "description": "Show the SSH and WSL relay processes when present"
+          "description": "Show the SSH server process when present"
         },
         "firewall_ssh_rules": {
           "command": [
@@ -936,104 +1150,9 @@
             "-Command"
           ],
           "args": [
-            "Get-NetFirewallRule | Where-Object { $_.DisplayName -like '*SSH*' -or $_.DisplayName -like '*50022*' -or $_.DisplayName -like '*60022*' } | Select-Object DisplayName,Enabled,Direction,Action | ConvertTo-Json -Compress"
+            "Get-NetFirewallRule | Where-Object { $_.DisplayName -like '*SSH*' } | Select-Object DisplayName,Enabled,Direction,Action | ConvertTo-Json -Compress"
           ],
-          "description": "Show firewall rules relevant to SSH and the forwarded WSL ports"
-        },
-        "wsl_status": {
-          "command": [
-            "wsl.exe",
-            "--status"
-          ],
-          "description": "Show the host WSL status"
-        },
-        "wsl_list": {
-          "command": [
-            "wsl.exe",
-            "-l",
-            "-v"
-          ],
-          "description": "List WSL distributions and their runtime state"
-        },
-        "vision_loopback_ssh_banner": {
-          "command": [
-            "powershell.exe",
-            "-NoProfile",
-            "-NonInteractive",
-            "-Command"
-          ],
-          "args": [
-            "$client = [System.Net.Sockets.TcpClient]::new(); $client.ReceiveTimeout = 3000; $client.SendTimeout = 3000; $client.Connect('127.0.0.1',50022); try { $stream = $client.GetStream(); $buffer = New-Object byte[] 256; $read = $stream.Read($buffer,0,$buffer.Length); [System.Text.Encoding]::ASCII.GetString($buffer,0,$read) } finally { $client.Dispose() }"
-          ],
-          "description": "Read the SSH banner from the Vision loopback relay on Thor"
-        },
-        "warmachine_loopback_ssh_banner": {
-          "command": [
-            "powershell.exe",
-            "-NoProfile",
-            "-NonInteractive",
-            "-Command"
-          ],
-          "args": [
-            "$client = [System.Net.Sockets.TcpClient]::new(); $client.ReceiveTimeout = 3000; $client.SendTimeout = 3000; $client.Connect('127.0.0.1',60022); try { $stream = $client.GetStream(); $buffer = New-Object byte[] 256; $read = $stream.Read($buffer,0,$buffer.Length); [System.Text.Encoding]::ASCII.GetString($buffer,0,$read) } finally { $client.Dispose() }"
-          ],
-          "description": "Read the SSH banner from the Warmachine loopback relay on Thor"
-        },
-        "vision_wsl_sshd_state": {
-          "command": [
-            "wsl.exe",
-            "-d",
-            "Vision",
-            "--",
-            "sh",
-            "-lc"
-          ],
-          "args": [
-            "hostname; ps -ef | grep [s]shd; ss -ltnp | grep ':22 ' || true"
-          ],
-          "description": "Inspect the Vision WSL distro for sshd processes and port 22 listeners"
-        },
-        "vision_wsl_listeners": {
-          "command": [
-            "wsl.exe",
-            "-d",
-            "Vision",
-            "--",
-            "sh",
-            "-lc"
-          ],
-          "args": [
-            "hostname; ss -ltnp"
-          ],
-          "description": "List listening TCP sockets inside the Vision WSL distro"
-        },
-        "warmachine_wsl_sshd_state": {
-          "command": [
-            "wsl.exe",
-            "-d",
-            "Warmachine",
-            "--",
-            "sh",
-            "-lc"
-          ],
-          "args": [
-            "hostname; ps -ef | grep [s]shd; ss -ltnp | grep ':22 ' || true"
-          ],
-          "description": "Inspect the Warmachine WSL distro for sshd processes and port 22 listeners"
-        },
-        "warmachine_wsl_listeners": {
-          "command": [
-            "wsl.exe",
-            "-d",
-            "Warmachine",
-            "--",
-            "sh",
-            "-lc"
-          ],
-          "args": [
-            "hostname; ss -ltnp"
-          ],
-          "description": "List listening TCP sockets inside the Warmachine WSL distro"
+          "description": "Show firewall rules relevant to SSH"
         }
       }
     }

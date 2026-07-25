@@ -158,7 +158,7 @@ The policy file has two layers:
 
 ## Current Policy: `config/policy.json`
 
-The live policy defines six reusable query service groups and six hosts. All user-specific paths use `${SSH_USER}` (resolved from `.env`).
+The live policy defines six reusable query service groups and eight hosts. All user-specific paths use `${SSH_USER}` (resolved from `.env`).
 
 ### Shared query service groups
 
@@ -198,11 +198,11 @@ The live policy defines six reusable query service groups and six hosts. All use
 | Query services | `filesystem_read` |
 | Host-specific queries | `alloy_config`, `alloy_dir_list`, `docker_ps`, `docker_inspect_{grafana,loki,mimir,tempo,alloy}`, `find_lgtm_all`, `read_docker_compose`, `read_grafana_datasources`, `read_mimir_config` |
 
-#### `WSL2_Vision`
+#### `Vision`
 
 | Field | Value |
 |---|---|
-| SSH target | `Vision:50022` |
+| SSH target | `Vision:22` |
 | Allowed paths | `/home/${SSH_USER}/geode/scripts/*.sh`, `/home/${SSH_USER}/geode_cluster_b/serverB1/*.log`, `/home/${SSH_USER}/geode_cluster_b/locatorB/*.log` |
 | Query services | `filesystem_read`, `host_identity`, `process_observability`, `network_diagnostics`, `geode_diagnostics` |
 
@@ -210,7 +210,7 @@ The live policy defines six reusable query service groups and six hosts. All use
 
 | Field | Value |
 |---|---|
-| SSH target | `Warmachine:60022` |
+| SSH target | `Warmachine:22` |
 | Allowed paths | `/home/${SSH_USER}/geode/scripts/*.sh`, `/home/${SSH_USER}/geode_cluster_b/serverB2/*.log` |
 | Query services | `filesystem_read`, `host_identity`, `process_observability`, `network_diagnostics`, `geode_diagnostics` |
 
@@ -234,7 +234,7 @@ All routes except `/healthz` require authentication when `REMOTE_QUERY_API_KEYS`
 Health probe. Does not require authentication.
 
 ```json
-{"status": "ok", "version": "0.1.0", "host_count": 6}
+{"status": "ok", "version": "0.1.0", "host_count": 8}
 ```
 
 ### `GET /v1/hosts`
@@ -509,7 +509,7 @@ The service starts on `http://127.0.0.1:8000` by default. Pass `--host 0.0.0.0 -
 On startup you will see a log line confirming the policy was loaded and how many hosts were registered:
 
 ```
-startup host_count=6 version=0.1.0
+startup host_count=8 version=0.1.0
 ```
 
 If the policy file is invalid or `REMOTE_QUERY_API_KEYS` is malformed, the process exits immediately with a descriptive error.
