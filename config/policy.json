@@ -504,6 +504,7 @@
       "allowed_paths": [
         "/var/log/app/*.log",
         "/var/log/nginx/access.log",
+        "/home/${SSH_USER}/geode_cluster/*.properties",
         "/home/${SSH_USER}/geode_cluster/server2/*.log",
         "/home/${SSH_USER}/geode_cluster/locator2/*.log",
         "/home/${SSH_USER}/geode/scripts/*.sh",
@@ -804,7 +805,9 @@
       "allowed_paths": [
         "/opt/splunk/etc/system/local/*.conf",
         "/opt/splunk/etc/**/*.conf",
-        "/opt/splunk/var/log/splunk/*.log"
+        "/opt/splunk/var/log/splunk/*.log",
+        "/opt/kafka/config/*.properties",
+        "/opt/kafka/logs/*.log"
       ],
       "query_services": [
         "host_identity",
@@ -812,6 +815,41 @@
         "network_diagnostics"
       ],
       "allowed_queries": {
+        "read_kafka_server_properties": {
+          "command": "cat",
+          "args": ["/opt/kafka/config/server.properties"],
+          "description": "Read the Kafka broker's server.properties (KRaft config)"
+        },
+        "list_kafka_config": {
+          "command": "find",
+          "args": [
+            "/opt/kafka/config",
+            "-maxdepth", "1",
+            "-name", "*.properties",
+            "-printf", "%f\n"
+          ],
+          "description": "List Kafka config property files"
+        },
+        "list_kafka_logs": {
+          "command": "find",
+          "args": [
+            "/opt/kafka/logs",
+            "-maxdepth", "1",
+            "-name", "*.log",
+            "-printf", "%f\n"
+          ],
+          "description": "List Kafka service log files (server, controller, etc.)"
+        },
+        "kafka_broker_version": {
+          "command": ["/opt/kafka/bin/kafka-topics.sh"],
+          "args": ["--version"],
+          "description": "Show the installed Kafka broker version"
+        },
+        "kafka_process": {
+          "command": "pgrep",
+          "args": ["-a", "-f", "kafka.Kafka"],
+          "description": "Check whether the Kafka broker JVM process is running"
+        },
         "list_splunk_all_confs": {
           "command": "find",
           "args": [
@@ -908,7 +946,8 @@
         "/home/${SSH_USER}/Work/quickfixj/**",
         "/home/${SSH_USER}/Work/fix-lab/**",
         "/home/${SSH_USER}/Work/oms-lab/**",
-        "/home/${SSH_USER}/Work/oms-lab-data/**"
+        "/home/${SSH_USER}/Work/oms-lab-data/**",
+        "/etc/alloy/config.alloy"
       ],
       "query_services": [
         "host_identity",

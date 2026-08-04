@@ -28,10 +28,12 @@ When using the Query Service API:
 
 Use this topology when reasoning about installations and troubleshooting.
 
+**Corrected 2026-08-04**: this reference previously described Thor as running WSL2 in NAT mode and Vision/Warmachine as sharing a single private WSL2 IP (`172.22.79.100`). That was migrated away months earlier (see GEODE.md/MONITORING.md in the LGTM-Geode project) — Vision and Warmachine have been real bridged-LAN VMs on Thor since that migration, and were further migrated from VMware Workstation to Oracle VirtualBox 7.2 on 2026-08-03/04 (Thor is unchanged as the physical host; only the hypervisor changed). Falcon and Wasp, previously missing from this list, are added below.
+
 - `Ironman`
   - IP: `192.168.0.53`
   - OS: `Windows 11`
-  - Role: Primary Windows host running VMware Workstation 17 Pro for the lab VMs.
+  - Role: Primary Windows host running VMware Workstation 17 Pro for the lab VMs (Antman, Hulk, BlackWidow).
 - `Antman`
   - IP: `192.168.0.150`
   - OS: `Rocky Linux 8.0`
@@ -47,19 +49,27 @@ Use this topology when reasoning about installations and troubleshooting.
 - `Thor`
   - IP: `192.168.0.14`
   - OS: `Windows 11`
-  - Role: Secondary Windows host running WSL2 in NAT mode.
-- `Hawkeye: `192.168.0.154
+  - Role: Secondary Windows host; VirtualBox host for Vision, Warmachine, and Wasp (real bridged-LAN VMs, not WSL2 guests; migrated from VMware Workstation to Oracle VirtualBox 7.2 on 2026-08-03/04).
+- `Hawkeye`
   - IP: `192.168.0.154`
   - OS: `Rocky Linux 9`
-  - Role: `Splunk Enterprise`
+  - Role: Splunk; Kafka (KRaft mode, `192.168.0.154:9092`); GitLab CE (see `D:\Alex\Work\Installs\GitLab-CE\PROJECT-PLAN.md`). VM migrated from VMware to Oracle VirtualBox 7.2 on 2026-08-03/04.
+- `Falcon`
+  - IP: `192.168.0.155`
+  - OS: `Rocky Linux 9`
+  - Role: FIX Engine host; GitLab Runner (shell executor).
 - `Vision`
-  - Private IP: `172.22.79.100`
+  - IP: `192.168.0.156`
   - OS: `Ubuntu 24.04`
-  - Role: Cluster B Geode main node and PostgreSQL server.
+  - Role: Cluster B Geode locatorB, serverB1, GatewayReceiver; PostgreSQL. VM on Thor, migrated from VMware to Oracle VirtualBox 7.2 on 2026-08-03/04.
 - `Warmachine`
-  - Private IP: `172.22.79.100`
+  - IP: `192.168.0.157`
   - OS: `RHEL 8`
-  - Role: Cluster B Geode member.
+  - Role: Cluster B Geode `serverB2`. VM on Thor, migrated from VMware to Oracle VirtualBox 7.2 on 2026-08-03/04.
+- `Wasp`
+  - IP: `192.168.0.158`
+  - OS: `Rocky Linux 9.7`
+  - Role: k3s single-node Kubernetes, deployment target for the GitLab CI/CD lab pipeline (see `D:\Alex\Work\Installs\GitLab-CE\PROJECT-PLAN.md`). VM on Thor, migrated from VMware to Oracle VirtualBox 7.2 on 2026-08-04.
 
 ## Notes
 
